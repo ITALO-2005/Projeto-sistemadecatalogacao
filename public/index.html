@@ -110,7 +110,7 @@
         if (response.ok) {
             alert(data.mensagem);
             if (isLogin) {
-                //aqui você redirecionaria para o Dashboard futuramente 
+                //aqui redirecionaria para o Dashboard futuramente 
                 document.body.innerHTML = `<h2 style="text-align:center; margin-top: 50px;">Bem-vindo ao Dashboard, ${email}!</h2>`; 
             } else {
                 alternarModo(); //volta para o login após cadastro

@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./sgnf.db');
 
 db.serialize(() => {
-    // Tabela de Usuários adicionada para o Login/Cadastro
+    //tabela de usuarios adicionada para o Login/Cadastro
     db.run(`CREATE TABLE IF NOT EXISTS USUARIO (
         id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE,
@@ -34,7 +34,7 @@ db.serialize(() => {
         FOREIGN KEY(id_nota) REFERENCES NOTA_FISCAL(id_nota)
     )`);
     
-    // inserindo o usuário admin padrão do seu mockup
+    // inserindo o usuário admin padrão
     db.run(`INSERT OR IGNORE INTO USUARIO (email, senha) VALUES ('admin@sgnf.pt', '123456')`);
 });
 
