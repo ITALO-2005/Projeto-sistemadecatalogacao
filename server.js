@@ -9,7 +9,7 @@ const PORT = 3000;
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public'))); 
 
-// Rota de Cadastro
+// rota de cadastro
 app.post('/api/cadastro', (req, res) => {
     const { email, senha } = req.body;
     db.run(`INSERT INTO USUARIO (email, senha) VALUES (?, ?)`, [email, senha], function(err) {
