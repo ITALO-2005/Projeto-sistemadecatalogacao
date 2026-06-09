@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGNF - Gestão de Notas Fiscais</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 350px;
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .sub-text {
+            color: #777;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #0f9d58; 
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .btn:hover {
+            background-color: #0d8a4d;
+        }
+        .toggle-link {
+            color: #0f9d58;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div style="color: #0f9d58; font-size: 40px; margin-bottom: 10px;"></div>
+    <div class="logo-text">SGNF</div>
+    <div class="sub-text">Gestão de Notas Fiscais</div> <div id="form-container">
+        <div class="input-group">
+            <label>E-mail</label> <input type="email" id="email" placeholder="admin@sgnf.pt"> </div>
+        <div class="input-group">
+            <label>Senha</label> <input type="password" id="senha" placeholder="••••••"> </div>
+        <button class="btn" id="action-btn" onclick="realizarAcao()">Entrar</button> <p class="toggle-link" onclick="alternarModo()" id="toggle-text">Não tem conta? Cadastre-se</p>
+    </div>
+</div>
+
+<script>
+    let isLogin = true;
+    function alternarModo() {
+        isLogin = !isLogin;
+        document.getElementById('action-btn').innerText = isLogin ? 'Entrar' : 'Cadastrar';
+        document.getElementById('toggle-text').innerText = isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login';
+    }
+
+    async function realizarAcao() {
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
+        const url = isLogin ? '/api/login' : '/api/cadastro';
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, senha })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert(data.mensagem);
+            if (isLogin) {
+                //aqui você redirecionaria para o Dashboard futuramente 
+                document.body.innerHTML = `<h2 style="text-align:center; margin-top: 50px;">Bem-vindo ao Dashboard, ${email}!</h2>`; 
+            } else {
+                alternarModo(); //volta para o login após cadastro
+            }
+        } else {
+            alert("Erro: " + data.mensagem);
+        }
+    }
+</script>
+
+</body>
+</html>

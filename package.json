@@ -1,5 +1,28 @@
 {
   "dependencies": {
-    "node": "^26.3.0"
-  }
+    "body-parser": "^2.2.2",
+    "express": "^5.2.1",
+    "node": "^26.3.0",
+    "sqlite3": "^6.0.1"
+  },
+  "name": "projeto-sistemadecatalogacao",
+  "version": "1.0.0",
+  "description": "Iniciando",
+  "main": "database.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ITALO-2005/Projeto-sistemadecatalogacao.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ITALO-2005/Projeto-sistemadecatalogacao/issues"
+  },
+  "homepage": "https://github.com/ITALO-2005/Projeto-sistemadecatalogacao#readme"
 }
