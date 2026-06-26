@@ -22,11 +22,16 @@ O projeto foi desenvolvido com foco na simplicidade e eficiência, utilizando:
 * **Frontend:** HTML5, CSS3 e JavaScript (Vanilla JS), consumindo a API interna via `fetch`.
 
 ## 🗄️ Modelagem do Banco de Dados
-O sistema utiliza um banco de dados relacional com as seguintes entidades principais:
-* **USUARIO:** Autenticação de administradores.
-* **EMPRESA:** Cadastro automático de fornecedores (1:N com Nota Fiscal).
-* **NOTA_FISCAL:** Registro central das despesas, atrelado a uma empresa emissora.
-* **ITEM_PRODUTO:** Itens comprados na nota (1:N com Nota Fiscal).
+O sistema utiliza um banco de dados relacional (SQLite) estruturado com as seguintes entidades e seus relacionamentos:
+
+* **USUARIO:** Entidade independente criada para o controle de acesso e autenticação de administradores do sistema. (Implementação extra ao modelo inicial).
+* **EMPRESA:** Tabela para cadastro dos fornecedores. 
+  * **Relacionamento:** 1:N com Nota Fiscal. Uma Empresa pode emitir várias Notas Fiscais.
+* **NOTA_FISCAL:** Registro central das despesas. 
+  * **Relacionamento:** Possui uma Chave Estrangeira (`id_empresa`) vinculando-a obrigatoriamente a uma Empresa (N:1).
+  * **Relacionamento:** 1:N com Item Produto. Uma Nota Fiscal pode ter vários itens cadastrados nela.
+* **ITEM_PRODUTO:** Detalhamento dos produtos comprados na nota. 
+  * **Relacionamento:** Possui uma Chave Estrangeira (`id_nota`) vinculando o item a uma única Nota Fiscal correspondente.
 
 ## 🚀 Funcionalidades Implementadas (CRUD)
 * **Autenticação:** Sistema de Login e Cadastro para administradores do setor.
