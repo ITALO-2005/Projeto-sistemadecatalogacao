@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Nova Nota Fiscal</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; display: flex; }
+        .sidebar { width: 250px; background-color: #fff; height: 100vh; padding: 20px; box-sizing: border-box; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .sidebar h2 { color: #0f9d58; margin-bottom: 30px; }
+        .menu-item { display: block; padding: 12px; color: #555; text-decoration: none; margin-bottom: 10px; border-radius: 4px; }
+        .menu-item:hover, .menu-item.active { background-color: #0f9d58; color: white; }
+        .main-content { flex: 1; padding: 30px; }
+        .form-container { background: white; padding: 20px; border-radius: 8px; max-width: 500px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #333; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-salvar { background-color: #0f9d58; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>SGNF</h2>
+        <a href="/dashboard.html" class="menu-item">Visão Geral</a>
+        <a href="/nova_nota.html" class="menu-item active">+ Nova Nota Fiscal</a>
+        <a href="/consultar_notas.html" class="menu-item">Consultar Notas</a>
+        <a href="/" class="menu-item" style="margin-top: 50px; color: #d93025;">Sair</a>
+    </div>
+
+    <div class="main-content">
+        <h1>Cadastrar Nota Fiscal</h1>
+        <div class="form-container">
+            <div class="form-group">
+                <label>Número da NF</label>
+                <input type="text" id="numero_nf" placeholder="Ex: NF-0015">
+            </div>
+            
+            <div class="form-group">
+                <label>Empresa (Fornecedor)</label>
+                <input type="text" id="nome_empresa" list="lista-empresas" placeholder="Digite ou selecione o fornecedor..." autocomplete="off">
+                <datalist id="lista-empresas">
+                    </datalist>
+            </div>
+
+            <div class="form-group">
+                <label>Data de Emissão</label>
+                <input type="date" id="data_emissao">
+            </div>
+            
+            <div class="form-group">
+                <label>Valor Total (R$)</label>
+                <input type="number" step="0.01" id="valor_total" placeholder="Ex: 1500.50">
+            </div>
+            
+            <button class="btn-salvar" onclick="salvarNota()">Salvar Nota Fiscal</button>
+        </div>
+    </div>
+
+    <script>
+        // Carrega as empresas para criar as sugestões do autocompletar
+        window.onload = async () => {
+            const res = await fetch('/api/empresas');
+            const empresas = await res.json();
+            const datalist = document.getElementById('lista-empresas');
+            
+            empresas.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.nome_razao_social; // Agora a sugestão é o nome
+                datalist.appendChild(option);
+            });
+        };
+
+        // Salva a nota no banco
+        async function salvarNota() {
+            const dados = {
+                numero_nf: document.getElementById('numero_nf').value,
+                nome_empresa: document.getElementById('nome_empresa').value, // Pega o texto digitado
+                data_emissao: document.getElementById('data_emissao').value,
+                valor_total: document.getElementById('valor_total').value
+            };
+
+            // Validação simples
+            if(!dados.numero_nf || !dados.nome_empresa || !dados.data_emissao || !dados.valor_total) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            const response = await fetch('/api/notas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            const result = await response.json();
+            alert(result.mensagem || result.erro);
+            
+            if (response.ok) {
+                // Redireciona para o dashboard em vez da tabela para ver os totais mudando
+                window.location.href = '/dashboard.html'; 
+            }
+        }
+    </script>
+</body>
+</html>

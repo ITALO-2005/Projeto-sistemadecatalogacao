@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultar Notas</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; display: flex; }
+        .sidebar { width: 250px; background-color: #fff; height: 100vh; padding: 20px; box-sizing: border-box; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .sidebar h2 { color: #0f9d58; margin-bottom: 30px; }
+        .menu-item { display: block; padding: 12px; color: #555; text-decoration: none; margin-bottom: 10px; border-radius: 4px; }
+        .menu-item:hover, .menu-item.active { background-color: #0f9d58; color: white; }
+        .main-content { flex: 1; padding: 30px; }
+        table { width: 100%; background-color: white; border-collapse: collapse; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f9f9f9; color: #555; }
+        .btn-excluir {
+            background-color: #d93025;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-excluir:hover {
+            background-color: #b3261e;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>SGNF</h2>
+        <a href="/dashboard.html" class="menu-item">Visão Geral</a>
+        <a href="/nova_nota.html" class="menu-item">+ Nova Nota Fiscal</a>
+        <a href="/consultar_notas.html" class="menu-item active">Consultar Notas</a>
+        <a href="/" class="menu-item" style="margin-top: 50px; color: #d93025;">Sair</a>
+    </div>
+
+    <div class="main-content">
+        <h1>Notas Cadastradas</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nota Fiscal</th>
+                    <th>Empresa</th>
+                    <th>Data de Emissão</th>
+                    <th>Valor Total</th>
+                    <th>Ações</th> </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Carrega as notas quando a página abre
+        window.onload = async () => {
+            carregarNotas();
+        };
+
+        async function carregarNotas() {
+            try {
+                const res = await fetch('/api/notas');
+                const notas = await res.json();
+                const tbody = document.getElementById('tabela-corpo');
+                
+                tbody.innerHTML = ''; // Limpa a tabela antes de preencher
+
+                if (notas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhuma nota cadastrada.</td></tr>';
+                    return;
+                }
+
+                notas.forEach(nota => {
+                    const valorNumerico = parseFloat(nota.valor_total) || 0;
+                    const valorFormatado = valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    let dataFormatada = 'Data não informada';
+                    if (nota.data_emissao) {
+                        dataFormatada = nota.data_emissao.split('-').reverse().join('/');
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${nota.numero_nf || '-'}</td>
+                        <td>${nota.empresa}</td>
+                        <td>${dataFormatada}</td>
+                        <td>${valorFormatado}</td>
+                        <td>
+                            <button class="btn-excluir" onclick="deletarNota(${nota.id_nota})">Excluir</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (erro) {
+                console.error("Erro ao carregar notas:", erro);
+            }
+        }
+
+        // Função para deletar a nota
+        async function deletarNota(id_nota) {
+            const confirmacao = confirm("Tem certeza que deseja excluir esta Nota Fiscal?");
+            
+            if (confirmacao) {
+                try {
+                    const res = await fetch(`/api/notas/${id_nota}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await res.json();
+                    
+                    alert(data.mensagem || data.erro);
+                    
+                    if (res.ok) {
+                        carregarNotas(); // Recarrega a tabela automaticamente se deu certo
+                    }
+                } catch (erro) {
+                    alert("Erro de comunicação com o servidor.");
+                }
+            }
+        }
+    </script>
+</body>
+</html>

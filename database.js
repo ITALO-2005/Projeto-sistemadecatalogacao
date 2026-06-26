@@ -8,6 +8,9 @@ db.serialize(() => {
         email TEXT UNIQUE,
         senha TEXT
     )`);
+    
+    db.run(`INSERT OR IGNORE INTO EMPRESA (id_empresa, nome_razao_social, cnpj) VALUES (1, 'Tech Soluções Lda', '11.111.111/0001-11')`);
+    db.run(`INSERT OR IGNORE INTO EMPRESA (id_empresa, nome_razao_social, cnpj) VALUES (2, 'Papelaria Central', '22.222.222/0002-22')`);
 
     // Tabela EMPRESA
     db.run(`CREATE TABLE IF NOT EXISTS EMPRESA (
