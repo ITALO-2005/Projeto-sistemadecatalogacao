@@ -2,6 +2,7 @@
 
 **Instituição:** IFPB - Campus Picuí 
 **Aluno:** Ítalo Dantas Santos
+**Professor** Daniel
 
 ---
 
@@ -19,7 +20,7 @@ Uma interface de fácil navegação proporciona aos usuários acesso aos módulo
 O projeto foi desenvolvido com foco na simplicidade e eficiência, utilizando:
 * **Backend:** Node.js com framework Express.js.
 * **Banco de Dados:** SQLite (Banco de Dados Relacional).
-* **Frontend:** HTML5, CSS3 e JavaScript (Vanilla JS), consumindo a API interna via `fetch`.
+* **Frontend:** HTML, CSS e JavaScript, consumindo a API interna via `fetch`.
 
 ## 🗄️ Modelagem do Banco de Dados
 O sistema utiliza um banco de dados relacional (SQLite) estruturado com as seguintes entidades e seus relacionamentos:
