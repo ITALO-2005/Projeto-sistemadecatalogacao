@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Consultar Notas</title>
+    <script>
+        if (!localStorage.getItem('sgnf_auth')) window.location.href = '/';
+    </script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; display: flex; }
         .sidebar { width: 250px; background-color: #fff; height: 100vh; padding: 20px; box-sizing: border-box; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
@@ -13,25 +16,15 @@
         table { width: 100%; background-color: white; border-collapse: collapse; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { background-color: #f9f9f9; color: #555; }
-        .btn-excluir {
-            background-color: #d93025;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .btn-excluir:hover { background-color: #b3261e; }
-        .busca-input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
+        .btn-acao { padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; border: none; color: white; margin-right: 5px; }
+        .btn-editar { background-color: #fbbc04; color: #333; }
+        .btn-excluir { background-color: #d93025; }
+        .btn-exportar { background-color: #1d6f42; margin-bottom: 20px; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; color: white; }
+        .badge.Paga { background-color: #0f9d58; }
+        .badge.Pendente { background-color: #d93025; }
+        .filtros-container { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .filtros-container input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -46,111 +39,127 @@
     <div class="main-content">
         <h1>Notas Cadastradas</h1>
         
-        <input type="text" id="inputBusca" class="busca-input" onkeyup="filtrarTabela()" placeholder="Buscar por número da NF ou Empresa...">
+        <!-- controles superiores -->
+        <div style="display: flex; justify-content: space-between;">
+            <div class="filtros-container">
+                <input type="text" id="inputBusca" onkeyup="filtrarTabela()" placeholder="Buscar NF ou Empresa...">
+                <label>De:</label>
+                <input type="date" id="dataInicio" onchange="filtrarTabela()">
+                <label>Até:</label>
+                <input type="date" id="dataFim" onchange="filtrarTabela()">
+                <button class="btn-acao btn-exportar" style="margin: 0;" onclick="exportarExcel()">Excel (CSV)</button>
+            </div>
+        </div>
 
-        <table>
+        <table id="tabela-notas">
             <thead>
                 <tr>
                     <th>Nota Fiscal</th>
                     <th>Empresa</th>
-                    <th>Data de Emissão</th>
-                    <th>Valor Total</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Valor</th>
                     <th>Anexo</th>
                     <th>Ações</th> 
                 </tr>
             </thead>
-            <tbody id="tabela-corpo">
-            </tbody>
+            <tbody id="tabela-corpo"></tbody>
         </table>
     </div>
 
     <script>
-        window.onload = async () => {
-            carregarNotas();
-        };
+        window.onload = async () => carregarNotas();
 
         async function carregarNotas() {
             try {
                 const res = await fetch('/api/notas');
                 const notas = await res.json();
                 const tbody = document.getElementById('tabela-corpo');
-                
                 tbody.innerHTML = ''; 
 
                 if (notas.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhuma nota cadastrada.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma nota encontrada.</td></tr>';
                     return;
                 }
 
                 notas.forEach(nota => {
-                    const valorNumerico = parseFloat(nota.valor_total) || 0;
-                    const valorFormatado = valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                    let dataFormatada = 'Data não informada';
-                    if (nota.data_emissao) {
-                        dataFormatada = nota.data_emissao.split('-').reverse().join('/');
-                    }
-
-                    let linkAnexo = "Sem anexo";
-                    if (nota.arquivo) {
-                        linkAnexo = `<a href="/uploads/${nota.arquivo}" target="_blank" style="color: #0f9d58; text-decoration: underline;">Ver Arquivo</a>`;
-                    }
+                    const valorFormatado = parseFloat(nota.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const dataOriginal = nota.data_emissao || '';
+                    const dataFormatada = dataOriginal ? dataOriginal.split('-').reverse().join('/') : '-';
+                    const linkAnexo = nota.arquivo ? `<a href="/uploads/${nota.arquivo}" target="_blank">Ver</a>` : "Sem anexo";
 
                     const tr = document.createElement('tr');
+                    // data-date escondido para facilitar o filtro
+                    tr.setAttribute('data-date', dataOriginal); 
                     tr.innerHTML = `
-                        <td>${nota.numero_nf || '-'}</td>
+                        <td>${nota.numero_nf}</td>
                         <td>${nota.empresa}</td>
                         <td>${dataFormatada}</td>
+                        <td><span class="badge ${nota.status}">${nota.status}</span></td>
                         <td>${valorFormatado}</td>
                         <td>${linkAnexo}</td>
                         <td>
-                            <button class="btn-excluir" onclick="deletarNota(${nota.id_nota})">Excluir</button>
+                            <button class="btn-acao btn-editar" onclick="editarNota(${nota.id_nota})">Editar</button>
+                            <button class="btn-acao btn-excluir" onclick="deletarNota(${nota.id_nota})">Excluir</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (erro) {
-                console.error("Erro ao carregar notas:", erro);
-            }
+            } catch (erro) { console.error("Erro:", erro); }
+        }
+
+        function editarNota(id) {
+            window.location.href = `/nova_nota.html?id=${id}`;
         }
 
         async function deletarNota(id_nota) {
-            const confirmacao = confirm("Tem certeza que deseja excluir esta Nota Fiscal?");
-            if (confirmacao) {
-                try {
-                    const res = await fetch(`/api/notas/${id_nota}`, { method: 'DELETE' });
-                    const data = await res.json();
-                    alert(data.mensagem || data.erro);
-                    
-                    if (res.ok) {
-                        carregarNotas(); 
-                    }
-                } catch (erro) {
-                    alert("Erro de comunicação com o servidor.");
-                }
+            if (confirm("Tem certeza que deseja excluir?")) {
+                const res = await fetch(`/api/notas/${id_nota}`, { method: 'DELETE' });
+                if (res.ok) carregarNotas(); 
             }
         }
 
         function filtrarTabela() {
-            const input = document.getElementById("inputBusca");
-            const filtro = input.value.toUpperCase();
+            const txtFiltro = document.getElementById("inputBusca").value.toUpperCase();
+            const dInicio = document.getElementById("dataInicio").value;
+            const dFim = document.getElementById("dataFim").value;
             const linhas = document.getElementById("tabela-corpo").getElementsByTagName("tr");
 
             for (let i = 0; i < linhas.length; i++) {
-                let colunaNF = linhas[i].getElementsByTagName("td")[0];
-                let colunaEmpresa = linhas[i].getElementsByTagName("td")[1];
+                let colunaNF = linhas[i].getElementsByTagName("td")[0]?.innerText.toUpperCase() || "";
+                let colunaEmp = linhas[i].getElementsByTagName("td")[1]?.innerText.toUpperCase() || "";
+                let dataLinha = linhas[i].getAttribute('data-date');
                 
-                if (colunaNF || colunaEmpresa) {
-                    let textoNF = colunaNF.textContent || colunaNF.innerText;
-                    let textoEmpresa = colunaEmpresa.textContent || colunaEmpresa.innerText;
-                    
-                    if (textoNF.toUpperCase().indexOf(filtro) > -1 || textoEmpresa.toUpperCase().indexOf(filtro) > -1) {
-                        linhas[i].style.display = ""; 
-                    } else {
-                        linhas[i].style.display = "none"; 
-                    }
-                }
+                let mostraPorTexto = colunaNF.includes(txtFiltro) || colunaEmp.includes(txtFiltro);
+                let mostraPorData = true;
+
+                if (dInicio && dataLinha < dInicio) mostraPorData = false;
+                if (dFim && dataLinha > dFim) mostraPorData = false;
+
+                linhas[i].style.display = (mostraPorTexto && mostraPorData) ? "" : "none";
             }
+        }
+
+        function exportarExcel() {
+            let csv = [];
+            const linhas = document.querySelectorAll("#tabela-notas tr");
+            
+            for (let i = 0; i < linhas.length; i++) {
+                if (linhas[i].style.display === "none") continue; // Só exporta o que está visível
+                
+                let linha = [], cols = linhas[i].querySelectorAll("td, th");
+                // Pula a coluna de Anexos e Ações na hora de exportar
+                for (let j = 0; j < cols.length - 2; j++) {
+                    linha.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+                csv.push(linha.join(";")); // Separado por ponto e vírgula
+            }
+
+            const csvArquivo = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(csvArquivo);
+            link.download = "Relatorio_Notas.csv";
+            link.click();
         }
     </script>
 </body>

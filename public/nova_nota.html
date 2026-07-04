@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Nova Nota Fiscal</title>
+    <script>
+        if (!localStorage.getItem('sgnf_auth')) window.location.href = '/';
+    </script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; display: flex; }
         .sidebar { width: 250px; background-color: #fff; height: 100vh; padding: 20px; box-sizing: border-box; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
@@ -13,7 +16,7 @@
         .form-container { background: white; padding: 20px; border-radius: 8px; max-width: 500px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; color: #333; }
-        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-salvar { background-color: #0f9d58; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
     </style>
 </head>
@@ -21,13 +24,13 @@
     <div class="sidebar">
         <h2>SGNF</h2>
         <a href="/dashboard.html" class="menu-item">Visão Geral</a>
-        <a href="/nova_nota.html" class="menu-item active">+ Nova Nota Fiscal</a>
+        <a href="/nova_nota.html" class="menu-item active" id="menu-title">+ Nova Nota Fiscal</a>
         <a href="/consultar_notas.html" class="menu-item">Consultar Notas</a>
         <a href="/" class="menu-item" style="margin-top: 50px; color: #d93025;">Sair</a>
     </div>
 
     <div class="main-content">
-        <h1>Cadastrar Nota Fiscal</h1>
+        <h1 id="page-title">Cadastrar Nota Fiscal</h1>
         <div class="form-container">
             <div class="form-group">
                 <label>Número da NF</label>
@@ -36,7 +39,7 @@
             
             <div class="form-group">
                 <label>Empresa (Fornecedor)</label>
-                <input type="text" id="nome_empresa" list="lista-empresas" placeholder="Digite ou selecione o fornecedor..." autocomplete="off">
+                <input type="text" id="nome_empresa" list="lista-empresas" placeholder="Digite ou selecione...">
                 <datalist id="lista-empresas"></datalist>
             </div>
 
@@ -52,29 +55,59 @@
 
             <div class="form-group">
                 <label>Descrição dos Produtos</label>
-                <input type="text" id="produtos" placeholder="Ex: Resmas de papel, canetas, etc.">
+                <input type="text" id="produtos" placeholder="Ex: Resmas de papel, etc.">
+            </div>
+
+
+            <div class="form-group">
+                <label>Status de Pagamento</label>
+                <select id="status">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Paga">Paga</option>
+                </select>
             </div>
 
             <div class="form-group">
-                <label>Anexar Comprovante (Opcional - PDF ou Imagem)</label>
+                <label>Anexar Comprovante (Opcional)</label>
                 <input type="file" id="arquivo_nota" accept="image/*,.pdf" style="padding: 5px;">
             </div>
             
-            <button class="btn-salvar" onclick="salvarNota()">Salvar Nota Fiscal</button>
+            <button class="btn-salvar" id="btn-submit" onclick="salvarNota()">Salvar Nota Fiscal</button>
         </div>
     </div>
 
     <script>
+        let notaEditId = null;
+
         window.onload = async () => {
             const res = await fetch('/api/empresas');
             const empresas = await res.json();
             const datalist = document.getElementById('lista-empresas');
-            
             empresas.forEach(emp => {
                 const option = document.createElement('option');
                 option.value = emp.nome_razao_social;
                 datalist.appendChild(option);
             });
+
+            // verifica se é uma edicao
+            const urlParams = new URLSearchParams(window.location.search);
+            notaEditId = urlParams.get('id');
+
+            if (notaEditId) {
+                document.getElementById('page-title').innerText = "Editar Nota Fiscal";
+                document.getElementById('menu-title').innerText = "Editar Nota";
+                document.getElementById('btn-submit').innerText = "Atualizar Nota";
+
+                const resNota = await fetch(`/api/notas/${notaEditId}`);
+                const nota = await resNota.json();
+                
+                document.getElementById('numero_nf').value = nota.numero_nf;
+                document.getElementById('nome_empresa').value = nota.nome_razao_social;
+                document.getElementById('data_emissao').value = nota.data_emissao;
+                document.getElementById('valor_total').value = nota.valor_total;
+                document.getElementById('produtos').value = nota.produtos || '';
+                document.getElementById('status').value = nota.status;
+            }
         };
 
         async function salvarNota() {
@@ -84,30 +117,30 @@
             formData.append('data_emissao', document.getElementById('data_emissao').value);
             formData.append('valor_total', document.getElementById('valor_total').value);
             formData.append('produtos', document.getElementById('produtos').value);
+            formData.append('status', document.getElementById('status').value);
             
             const arquivoInput = document.getElementById('arquivo_nota');
             if (arquivoInput.files.length > 0) {
                 formData.append('arquivo_nota', arquivoInput.files[0]);
             }
 
-            const numero = formData.get('numero_nf');
-            const empresa = formData.get('nome_empresa');
-            if(!numero || !empresa) {
-                alert("Por favor, preencha os campos obrigatórios (NF e Empresa).");
+            if(!formData.get('numero_nf') || !formData.get('nome_empresa')) {
+                alert("Preencha NF e Empresa.");
                 return;
             }
 
-            const response = await fetch('/api/notas', {
-                method: 'POST',
+            // Se tem ID faz PUT editar no caso. Se não tem, faz POST crriar
+            const url = notaEditId ? `/api/notas/${notaEditId}` : '/api/notas';
+            const method = notaEditId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 body: formData
             });
 
             const result = await response.json();
             alert(result.mensagem || result.erro);
-            
-            if (response.ok) {
-                window.location.href = '/dashboard.html'; 
-            }
+            if (response.ok) window.location.href = '/consultar_notas.html'; 
         }
     </script>
 </body>
