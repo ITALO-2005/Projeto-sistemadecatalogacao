@@ -37,8 +37,7 @@
             <div class="form-group">
                 <label>Empresa (Fornecedor)</label>
                 <input type="text" id="nome_empresa" list="lista-empresas" placeholder="Digite ou selecione o fornecedor..." autocomplete="off">
-                <datalist id="lista-empresas">
-                    </datalist>
+                <datalist id="lista-empresas"></datalist>
             </div>
 
             <div class="form-group">
@@ -50,13 +49,22 @@
                 <label>Valor Total (R$)</label>
                 <input type="number" step="0.01" id="valor_total" placeholder="Ex: 1500.50">
             </div>
+
+            <div class="form-group">
+                <label>Descrição dos Produtos</label>
+                <input type="text" id="produtos" placeholder="Ex: Resmas de papel, canetas, etc.">
+            </div>
+
+            <div class="form-group">
+                <label>Anexar Comprovante (Opcional - PDF ou Imagem)</label>
+                <input type="file" id="arquivo_nota" accept="image/*,.pdf" style="padding: 5px;">
+            </div>
             
             <button class="btn-salvar" onclick="salvarNota()">Salvar Nota Fiscal</button>
         </div>
     </div>
 
     <script>
-        // Carrega as empresas para criar as sugestões do autocompletar
         window.onload = async () => {
             const res = await fetch('/api/empresas');
             const empresas = await res.json();
@@ -64,37 +72,40 @@
             
             empresas.forEach(emp => {
                 const option = document.createElement('option');
-                option.value = emp.nome_razao_social; // Agora a sugestão é o nome
+                option.value = emp.nome_razao_social;
                 datalist.appendChild(option);
             });
         };
 
-        // Salva a nota no banco
         async function salvarNota() {
-            const dados = {
-                numero_nf: document.getElementById('numero_nf').value,
-                nome_empresa: document.getElementById('nome_empresa').value, // Pega o texto digitado
-                data_emissao: document.getElementById('data_emissao').value,
-                valor_total: document.getElementById('valor_total').value
-            };
+            const formData = new FormData();
+            formData.append('numero_nf', document.getElementById('numero_nf').value);
+            formData.append('nome_empresa', document.getElementById('nome_empresa').value);
+            formData.append('data_emissao', document.getElementById('data_emissao').value);
+            formData.append('valor_total', document.getElementById('valor_total').value);
+            formData.append('produtos', document.getElementById('produtos').value);
+            
+            const arquivoInput = document.getElementById('arquivo_nota');
+            if (arquivoInput.files.length > 0) {
+                formData.append('arquivo_nota', arquivoInput.files[0]);
+            }
 
-            // Validação simples
-            if(!dados.numero_nf || !dados.nome_empresa || !dados.data_emissao || !dados.valor_total) {
-                alert("Por favor, preencha todos os campos.");
+            const numero = formData.get('numero_nf');
+            const empresa = formData.get('nome_empresa');
+            if(!numero || !empresa) {
+                alert("Por favor, preencha os campos obrigatórios (NF e Empresa).");
                 return;
             }
 
             const response = await fetch('/api/notas', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados)
+                body: formData
             });
 
             const result = await response.json();
             alert(result.mensagem || result.erro);
             
             if (response.ok) {
-                // Redireciona para o dashboard em vez da tabela para ver os totais mudando
                 window.location.href = '/dashboard.html'; 
             }
         }

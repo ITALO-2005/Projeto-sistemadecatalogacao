@@ -22,8 +22,15 @@
             cursor: pointer;
             font-size: 14px;
         }
-        .btn-excluir:hover {
-            background-color: #b3261e;
+        .btn-excluir:hover { background-color: #b3261e; }
+        .busca-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -38,6 +45,9 @@
 
     <div class="main-content">
         <h1>Notas Cadastradas</h1>
+        
+        <input type="text" id="inputBusca" class="busca-input" onkeyup="filtrarTabela()" placeholder="Buscar por número da NF ou Empresa...">
+
         <table>
             <thead>
                 <tr>
@@ -45,15 +55,16 @@
                     <th>Empresa</th>
                     <th>Data de Emissão</th>
                     <th>Valor Total</th>
-                    <th>Ações</th> </tr>
+                    <th>Anexo</th>
+                    <th>Ações</th> 
+                </tr>
             </thead>
             <tbody id="tabela-corpo">
-                </tbody>
+            </tbody>
         </table>
     </div>
 
     <script>
-        // Carrega as notas quando a página abre
         window.onload = async () => {
             carregarNotas();
         };
@@ -64,10 +75,10 @@
                 const notas = await res.json();
                 const tbody = document.getElementById('tabela-corpo');
                 
-                tbody.innerHTML = ''; // Limpa a tabela antes de preencher
+                tbody.innerHTML = ''; 
 
                 if (notas.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhuma nota cadastrada.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhuma nota cadastrada.</td></tr>';
                     return;
                 }
 
@@ -80,12 +91,18 @@
                         dataFormatada = nota.data_emissao.split('-').reverse().join('/');
                     }
 
+                    let linkAnexo = "Sem anexo";
+                    if (nota.arquivo) {
+                        linkAnexo = `<a href="/uploads/${nota.arquivo}" target="_blank" style="color: #0f9d58; text-decoration: underline;">Ver Arquivo</a>`;
+                    }
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${nota.numero_nf || '-'}</td>
                         <td>${nota.empresa}</td>
                         <td>${dataFormatada}</td>
                         <td>${valorFormatado}</td>
+                        <td>${linkAnexo}</td>
                         <td>
                             <button class="btn-excluir" onclick="deletarNota(${nota.id_nota})">Excluir</button>
                         </td>
@@ -97,24 +114,41 @@
             }
         }
 
-        // Função para deletar a nota
         async function deletarNota(id_nota) {
             const confirmacao = confirm("Tem certeza que deseja excluir esta Nota Fiscal?");
-            
             if (confirmacao) {
                 try {
-                    const res = await fetch(`/api/notas/${id_nota}`, {
-                        method: 'DELETE'
-                    });
+                    const res = await fetch(`/api/notas/${id_nota}`, { method: 'DELETE' });
                     const data = await res.json();
-                    
                     alert(data.mensagem || data.erro);
                     
                     if (res.ok) {
-                        carregarNotas(); // Recarrega a tabela automaticamente se deu certo
+                        carregarNotas(); 
                     }
                 } catch (erro) {
                     alert("Erro de comunicação com o servidor.");
+                }
+            }
+        }
+
+        function filtrarTabela() {
+            const input = document.getElementById("inputBusca");
+            const filtro = input.value.toUpperCase();
+            const linhas = document.getElementById("tabela-corpo").getElementsByTagName("tr");
+
+            for (let i = 0; i < linhas.length; i++) {
+                let colunaNF = linhas[i].getElementsByTagName("td")[0];
+                let colunaEmpresa = linhas[i].getElementsByTagName("td")[1];
+                
+                if (colunaNF || colunaEmpresa) {
+                    let textoNF = colunaNF.textContent || colunaNF.innerText;
+                    let textoEmpresa = colunaEmpresa.textContent || colunaEmpresa.innerText;
+                    
+                    if (textoNF.toUpperCase().indexOf(filtro) > -1 || textoEmpresa.toUpperCase().indexOf(filtro) > -1) {
+                        linhas[i].style.display = ""; 
+                    } else {
+                        linhas[i].style.display = "none"; 
+                    }
                 }
             }
         }

@@ -2,13 +2,34 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('./database');
 const path = require('path');
+const multer = require('multer'); // Importando o multer para upload de arquivos
+const fs = require('fs');
 
 const app = express();
 const PORT = 3000;
 
+//cria a pasta de uploads automaticamente dentro de public caso ela não exista
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configuração do multer 
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir)
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
+
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public'))); 
 
+// Rota de Cadastro
 app.post('/api/cadastro', (req, res) => {
     const { email, senha } = req.body;
     db.run(`INSERT INTO USUARIO (email, senha) VALUES (?, ?)`, [email, senha], function(err) {
@@ -19,6 +40,7 @@ app.post('/api/cadastro', (req, res) => {
     });
 });
 
+// Rota de Login
 app.post('/api/login', (req, res) => {
     const { email, senha } = req.body;
     db.get(`SELECT * FROM USUARIO WHERE email = ? AND senha = ?`, [email, senha], (err, row) => {
@@ -30,10 +52,10 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Rota para Consultar TODAS as Notas 
+// Rota para Consultar TODAS as Notas retornando o arquivvo
 app.get('/api/notas', (req, res) => {
     const sql = `
-        SELECT n.id_nota, n.numero_nf, e.nome_razao_social as empresa, n.data_emissao, n.valor_total
+        SELECT n.id_nota, n.numero_nf, e.nome_razao_social as empresa, n.data_emissao, n.valor_total, n.arquivo
         FROM NOTA_FISCAL n
         LEFT JOIN EMPRESA e ON n.id_empresa = e.id_empresa
         ORDER BY n.id_nota DESC
@@ -46,34 +68,31 @@ app.get('/api/notas', (req, res) => {
 
 // Rota para DELETAR uma nota fiscal pelo ID
 app.delete('/api/notas/:id', (req, res) => {
-    const id = req.params.id; //pega o id que veio na url
+    const id = req.params.id; 
     
-    db.run(`DELETE FROM NOTA_FISCAL WHERE id_nota = ?`, [id], function(err) {
-        if (err) {
-            return res.status(500).json({ erro: "Erro ao excluir a nota." });
-        }
-        res.json({ mensagem: "Nota excluída com sucesso!" });
+    // Deleta os produtos primeiro
+    db.run(`DELETE FROM ITEM_PRODUTO WHERE id_nota = ?`, [id], function(err) {
+        // Depois deleta a nota
+        db.run(`DELETE FROM NOTA_FISCAL WHERE id_nota = ?`, [id], function(err) {
+            if (err) {
+                return res.status(500).json({ erro: "Erro ao excluir a nota." });
+            }
+            res.json({ mensagem: "Nota excluída com sucesso!" });
+        });
     });
 });
 
 // Rota para pegar os dados do Dashboard
 app.get('/api/dashboard', (req, res) => {
-    // Conta as notas e soma o valor gasto
     db.get(`SELECT COUNT(*) as totalNotas, IFNULL(SUM(valor_total), 0) as totalGasto FROM NOTA_FISCAL`, (err, stats) => {
-        
-        // Conta as empresas
         db.get(`SELECT COUNT(*) as totalFornecedores FROM EMPRESA`, (err, fornec) => {
-            
-            //Pega as 5 ultimas notas para a tabelinha
             const sqlRecentes = `
                 SELECT n.numero_nf, e.nome_razao_social as empresa, n.data_emissao, n.valor_total
                 FROM NOTA_FISCAL n
                 LEFT JOIN EMPRESA e ON n.id_empresa = e.id_empresa
                 ORDER BY n.id_nota DESC LIMIT 5
             `;
-            
             db.all(sqlRecentes, [], (err, recentes) => {
-                // Junta tudo e manda pro HTML
                 res.json({
                     totalNotas: stats.totalNotas,
                     totalGasto: stats.totalGasto,
@@ -85,7 +104,7 @@ app.get('/api/dashboard', (req, res) => {
     });
 });
 
-// 3. Rota para pegar o nome das empresas pro campo de digitar autocompleta
+// Rota para pegar empresas para o autocompletar
 app.get('/api/empresas', (req, res) => {
     db.all(`SELECT * FROM EMPRESA`, [], (err, rows) => {
         if (err) res.status(500).json({ erro: "Erro ao buscar empresas." });
@@ -93,30 +112,37 @@ app.get('/api/empresas', (req, res) => {
     });
 });
 
-// 4. Rota para Cadastrar Nota e Empresa
-app.post('/api/notas', (req, res) => {
-    const { numero_nf, nome_empresa, data_emissao, valor_total } = req.body;
+// Rota para Cadastrar Nota, Empresa, Produtos e Arquivo
+app.post('/api/notas', upload.single('arquivo_nota'), (req, res) => {
+    const { numero_nf, nome_empresa, data_emissao, valor_total, produtos } = req.body;
+    const arquivo = req.file ? req.file.filename : null; // Pega o nome do arquivo, se tiver sido enviado
 
-    // Primeiro olha se a empresa já existe digitada igualzinha
     db.get(`SELECT id_empresa FROM EMPRESA WHERE nome_razao_social = ?`, [nome_empresa], (err, row) => {
-        
         if (row) {
-            // Se existir  Pega o ID dela e salva a nota
-            db.run(`INSERT INTO NOTA_FISCAL (numero_nf, data_emissao, valor_total, id_empresa) VALUES (?, ?, ?, ?)`, 
-            [numero_nf, data_emissao, valor_total, row.id_empresa], (err) => {
-                res.json({ mensagem: "Nota salva na empresa existente!" });
+            // Empresa existente
+            db.run(`INSERT INTO NOTA_FISCAL (numero_nf, data_emissao, valor_total, id_empresa, arquivo) VALUES (?, ?, ?, ?, ?)`, 
+            [numero_nf, data_emissao, valor_total, row.id_empresa, arquivo], function(err) {
+                const id_nota_inserida = this.lastID;
+                
+                if (produtos) { 
+                    db.run(`INSERT INTO ITEM_PRODUTO (descricao_produto, id_nota) VALUES (?, ?)`, [produtos, id_nota_inserida]); 
+                }
+                res.json({ mensagem: "Nota, produtos e anexo salvos!" });
             });
             
         } else {
-            // SE NÃO EXISTIR: Cria a empresa primeiro
+            // Cria a empresa primeiro
             db.run(`INSERT INTO EMPRESA (nome_razao_social, cnpj) VALUES (?, ?)`, [nome_empresa, '00.000.000/0001-00'], function(err) {
+                const id_nova_empresa = this.lastID; 
                 
-                const id_nova_empresa = this.lastID; // Pega o ID da empresa recém criada
-                
-                // Depois salva a nota com o ID dessa empresa nova
-                db.run(`INSERT INTO NOTA_FISCAL (numero_nf, data_emissao, valor_total, id_empresa) VALUES (?, ?, ?, ?)`, 
-                [numero_nf, data_emissao, valor_total, id_nova_empresa], (err) => {
-                    res.json({ mensagem: "Empresa criada e nota salva!" });
+                db.run(`INSERT INTO NOTA_FISCAL (numero_nf, data_emissao, valor_total, id_empresa, arquivo) VALUES (?, ?, ?, ?, ?)`, 
+                [numero_nf, data_emissao, valor_total, id_nova_empresa, arquivo], function(err) {
+                    const id_nota_inserida = this.lastID;
+                    
+                    if (produtos) { 
+                        db.run(`INSERT INTO ITEM_PRODUTO (descricao_produto, id_nota) VALUES (?, ?)`, [produtos, id_nota_inserida]); 
+                    }
+                    res.json({ mensagem: "Empresa criada, nota e anexo salvos!" });
                 });
             });
         }
